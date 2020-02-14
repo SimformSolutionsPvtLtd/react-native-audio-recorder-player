@@ -113,11 +113,18 @@ public class RNAudioRecorderPlayerModule extends ReactContextBaseJavaModule impl
       this.recorderRunnable = new Runnable() {
         @Override
         public void run() {
-          long time = SystemClock.elapsedRealtime() - systemTime;
-          WritableMap obj = Arguments.createMap();
-          obj.putDouble("current_position", time);
-          sendEvent(reactContext, "rn-recordback", obj);
-          recordHandler.postDelayed(this, subsDurationMillis);
+          try {
+            long time = SystemClock.elapsedRealtime() - systemTime;
+            int maxAmplitude = mediaRecorder.getMaxAmplitude();
+            int amplitude = maxAmplitude == 0 ? -160 : ((int) (20 * Math.log(((double) maxAmplitude) / 32767d)));
+            WritableMap obj = Arguments.createMap();
+            obj.putDouble("current_position", time);
+            obj.putInt("current_amplitude", amplitude);
+            sendEvent(reactContext, "rn-recordback", obj);
+            recordHandler.postDelayed(this, subsDurationMillis);
+          } catch (IllegalStateException e) {
+            Log.e(TAG, "IllegalStateException: ", e);
+          }
         }
       };
       this.recorderRunnable.run();

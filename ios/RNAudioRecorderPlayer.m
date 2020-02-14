@@ -44,10 +44,14 @@ double subscriptionDuration = 0.1;
 
 - (void)updateRecorderProgress:(NSTimer*) timer
 {
+  [audioRecorder updateMeters];
+  float maxAmplitude = [audioRecorder averagePowerForChannel: 0];
+  NSNumber *amplitude = [NSNumber numberWithFloat:maxAmplitude];
   NSNumber *currentTime = [NSNumber numberWithDouble:audioRecorder.currentTime * 1000];
   // NSString* status = [NSString stringWithFormat:@"{\"current_position\": \"%@\"}", [currentTime stringValue]];
   NSDictionary *status = @{
                          @"current_position" : [currentTime stringValue],
+                         @"current_amplitude" : amplitude,
                          };
   [self sendEventWithName:@"rn-recordback" body:status];
 }
@@ -178,11 +182,18 @@ RCT_EXPORT_METHOD(startRecorder:(NSString*)path
                                  avFormat, AVFormatIDKey,
                                  numberOfChannel, AVNumberOfChannelsKey,
                                  audioQuality, AVEncoderAudioQualityKey,
+                                 [NSNumber numberWithInt:16], AVLinearPCMBitDepthKey,
+                                 [NSNumber numberWithBool:NO], AVLinearPCMIsBigEndianKey,
+                                 [NSNumber numberWithBool:NO], AVLinearPCMIsFloatKey,
                                  nil];
 
   // Setup audio session
   AVAudioSession *session = [AVAudioSession sharedInstance];
-  [session setCategory:AVAudioSessionCategoryPlayAndRecord error:nil];
+  if (@available(iOS 10.0, *)) {
+      [session setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:AVAudioSessionCategoryOptionAllowBluetoothA2DP | AVAudioSessionCategoryOptionAllowBluetooth error:nil];
+  } else {
+      [session setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:AVAudioSessionCategoryOptionAllowBluetooth error:nil];
+  }
 
   // set volume default to speaker
   UInt32 doChangeDefaultRoute = 1;
@@ -194,6 +205,7 @@ RCT_EXPORT_METHOD(startRecorder:(NSString*)path
                         error:nil];
   
   [audioRecorder setDelegate:self];
+  [audioRecorder setMeteringEnabled:YES];
   [audioRecorder record];
   [self startRecorderTimer];
     
